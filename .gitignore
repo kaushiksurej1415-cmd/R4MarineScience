@@ -7,9 +7,9 @@
 
 # Extensions to ignore - toggle on and off as required
 # *.html
-# *.png
-# *.jpg
-# *.jpeg
+*.png
+*.jpg
+*.jpeg
 # *.eps
 # *.pdf
 # *.bmp
@@ -19,7 +19,7 @@
 
 # Folders to ignore
 archive/
-output/
+#output/
 
 # Keywords to ignore
 *archive
