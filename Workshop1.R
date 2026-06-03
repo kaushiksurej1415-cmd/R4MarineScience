@@ -66,3 +66,85 @@ biscoe_gentoo <- filter(penguins, species == "Gentoo" & island == "Biscoe")
 # Sift records matching multiple targeting flags within an explicit set 
 sub_islands <- filter(penguins, island %in% c("Dream", "Torgersen"))
 
+# Sort penguins by ascending body mass (Default setting: Smallest mass first)
+lightest_first <- arrange(penguins, body_mass_g)
+# Sorting penguins in descending order using the desc() layout wrapper 
+heaviest_first <- arrange(penguins, desc(body_mass_g))
+
+# Execute nested sorting criteria: Group by species, then sort by descending bill length
+stratified_morphology <- arrange(penguins, species, desc(bill_length_mm))
+
+penguins_final <- penguins |>
+  mutate(bill_ratio = bill_length_mm / bill_depth_mm) |>
+  filter(species == "Adelie")
+
+## Calculate a new morphological ratio in our environment
+penguin_ratios <- penguins  |> 
+  mutate(body_mass_kg = body_mass_g / 1000,   # Convert grams to kilograms
+         bill_ratio = bill_length_mm / bill_depth_mm  # Bill ratio
+  )
+
+# View your newly engineered variables appended to the far-right columns
+glimpse(penguin_ratios)
+
+#Grouping penguins by species
+grouped_penguins <- group_by(penguins, species)
+# Notice that the table looks identical, but metadata notes 'Groups: species [3]'
+print(grouped_penguins)
+
+# Collapsing the buckets into explicit summary metrics
+species_mass_summary <- summarise(grouped_penguins,
+                                  mean_mass_g = mean(body_mass_g)
+)
+
+print(species_mass_summary)
+
+# Overcoming the missing value trap using na.rm = TRUE
+biological_signal <- penguins %>%
+  group_by(species, sex) %>%
+  summarise(
+    sample_size = n(),                                     # Count total individuals per category
+    mean_mass_g = mean(body_mass_g, na.rm = TRUE),         # Calculate mean ignoring missing cells
+    sd_mass_g   = sd(body_mass_g, na.rm = TRUE)            # Standard deviation calculation
+  )
+
+print(biological_signal)
+
+# Pipe directly from aggregation to plotting with error bars
+mass_compare_plot <-  penguins |>
+  group_by(species, island) |>
+  summarise(
+    mean_mass = mean(body_mass_g, na.rm = TRUE),
+    sd_mass = sd(body_mass_g, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  ggplot(aes(x = species, y = mean_mass, colour = island)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_mass - sd_mass, 
+                    ymax = mean_mass + sd_mass), 
+                width = 0.2) +
+  labs(title = "Mean Body Mass by Species and Island",
+       subtitle = "Error bars represent standard deviation",
+       y = "Mean Body Mass (g)",
+       x = "Species") +
+  theme_minimal()
+
+mass_compare_plot
+
+# Create output directories if they do not exist:
+if (!dir.exists("outputs/figures")) dir.create("outputs/figures") # folder for figs
+if (!dir.exists("outputs/tables")) dir.create("outputs/tables") # folder for tables
+if (!dir.exists("Rdata")) dir.create("Rdata") # folder for Rdata objects
+
+
+# 1. Exporting our collapsed summary table as a universal flat text file
+write_csv(biological_signal, "outputs/penguin_species_mass_summary.csv")
+
+# 2. Saving our cleaned morphological cohort table as a native R binary file
+saveRDS(clean_cohort, "outputs/clean_penguin_morphology_cohort.rds")
+
+ggsave("outputs/mass_compare_plot.png", 
+       plot = mass_compare_plot, 
+       width = 120, height = 120, 
+       units = "mm", dpi = 300)
